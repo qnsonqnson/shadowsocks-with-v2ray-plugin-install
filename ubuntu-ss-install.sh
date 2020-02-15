@@ -12,8 +12,8 @@ fi
 [ `whoami` != "root" ] && echo "\033[1;31mThis script must be run as root.\033[0m" && exit 1
 
 # Version
-LIBSODIUM_VER=1.0.17
-MBEDTLS_VER=2.16.0
+LIBSODIUM_VER=stable
+MBEDTLS_VER=2.16.4
 ss_file=0
 v2_file=0
 get_latest_ver(){
@@ -23,7 +23,6 @@ get_latest_ver(){
 
 # Set shadowsocks-libev config password
 set_password(){
-    clear
     echo "\033[1;34mPlease enter password for shadowsocks-libev:\033[0m"
     read -p "(Default password: M3chD09):" shadowsockspwd
     [ -z "${shadowsockspwd}" ] && shadowsockspwd="M3chD09"
@@ -58,11 +57,11 @@ pre_install(){
 
 # Installation of Libsodium
 install_libsodium(){
-    if [ -f /usr/lib/libsodium.a ];then
+    if [ -f /usr/lib/libsodium.a ] || [ -f /usr/lib64/libsodium.a ];then
         echo "\033[1;32mLibsodium already installed, skip.\033[0m"
     else
         if [ ! -f libsodium-$LIBSODIUM_VER.tar.gz ];then
-            wget https://download.libsodium.org/libsodium/releases/libsodium-$LIBSODIUM_VER.tar.gz
+            wget https://download.libsodium.org/libsodium/releases/LATEST.tar.gz -O libsodium-$LIBSODIUM_VER.tar.gz
         fi
         tar xf libsodium-$LIBSODIUM_VER.tar.gz
         cd libsodium-$LIBSODIUM_VER
@@ -70,7 +69,7 @@ install_libsodium(){
         make install
         cd ..
         ldconfig
-        if [ ! -f /usr/lib/libsodium.a ];then
+        if [ ! -f /usr/lib/libsodium.a ] && [ ! -f /usr/lib64/libsodium.a ];then
             echo "\033[1;31mFailed to install libsodium.\033[0m"
             exit 1
         fi
@@ -214,16 +213,57 @@ print_ss_info(){
     echo "Your Plugin options   :  tls;host=${domain}"
     echo "Enjoy it!"
 }
-set_password
-set_domain
-pre_install
-install_libsodium
-install_mbedtls
-get_latest_ver
-install_ss
-install_v2
-ss_conf
-get_cert
-start_ss
-remove_files
-print_ss_info
+
+install_all(){
+    set_password
+    set_domain
+    pre_install
+    install_libsodium
+    install_mbedtls
+    get_latest_ver
+    install_ss
+    install_v2
+    ss_conf
+    get_cert
+    start_ss
+    remove_files
+    print_ss_info
+}
+
+remove_all(){
+    systemctl disable shadowsocks
+    systemctl stop shadowsocks
+    rm -fr /etc/shadowsocks-libev
+    rm -f /usr/local/bin/ss-local
+    rm -f /usr/local/bin/ss-tunnel
+    rm -f /usr/local/bin/ss-server
+    rm -f /usr/local/bin/ss-manager
+    rm -f /usr/local/bin/ss-redir
+    rm -f /usr/local/bin/ss-nat
+    rm -f /usr/local/bin/v2ray-plugin
+    rm -f /usr/local/lib/libshadowsocks-libev.a
+    rm -f /usr/local/lib/libshadowsocks-libev.la
+    rm -f /usr/local/include/shadowsocks.h
+    rm -f /usr/local/lib/pkgconfig/shadowsocks-libev.pc
+    rm -f /usr/local/share/man/man1/ss-local.1
+    rm -f /usr/local/share/man/man1/ss-tunnel.1
+    rm -f /usr/local/share/man/man1/ss-server.1
+    rm -f /usr/local/share/man/man1/ss-manager.1
+    rm -f /usr/local/share/man/man1/ss-redir.1
+    rm -f /usr/local/share/man/man1/ss-nat.1
+    rm -f /usr/local/share/man/man8/shadowsocks-libev.8
+    rm -fr /usr/local/share/doc/shadowsocks-libev
+    rm -f /usr/lib/systemd/system/shadowsocks.service
+    echo "\033[1;32mRemove success!\033[0m"
+}
+
+clear
+echo "What do you want to do?"
+echo "[1] Install"
+echo "[2] Remove"
+read -p "(Default option: Install):" option
+if [ $option -eq 2 ];then
+    remove_all
+else
+    install_all
+fi
